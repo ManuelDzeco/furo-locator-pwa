@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="pt">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Furo Locator</title>
+
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#111827" />
+
+  <!-- Leaflet (mapa) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
+  <style>
+    body{font-family:system-ui,Segoe UI,Roboto,Arial;margin:0;background:#0b1220;color:#e5e7eb}
+    header{padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.08)}
+    h1{font-size:16px;margin:0}
+    main{padding:12px 16px;display:grid;gap:12px}
+    .card{background:#0f172a;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:12px}
+    label{font-size:12px;opacity:.9}
+    input,textarea,button,select{width:100%;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:#0b1220;color:#e5e7eb}
+    button{cursor:pointer}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    #map{height:320px;border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,.10)}
+    .muted{opacity:.8;font-size:12px}
+    .warn{color:#fbbf24;font-size:12px}
+    .ok{color:#34d399;font-size:12px}
+    .actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .actions3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+    .list{display:grid;gap:8px}
+    .item{padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,.10);background:#0b1220}
+    .item b{font-size:13px}
+    .item div{font-size:12px;opacity:.85}
+  </style>
+</head>
+<body>
+<header>
+  <h1>Furo Locator (PWA)</h1>
+  <div class="muted">Captura GPS offline • Exporta JSON/CSV</div>
+</header>
+
+<main>
+  <div class="card">
+    <div class="row">
+      <div>
+        <label>Código do Cliente</label>
+        <input id="clientCode" placeholder="Ex.: AN1" />
+      </div>
+      <div>
+        <label>Operador (opcional)</label>
+        <input id="capturedBy" placeholder="Ex.: Técnico 1" />
+      </div>
+    </div>
+
+    <div style="height:10px"></div>
+
+    <label>Observações (opcional)</label>
+    <textarea id="notes" rows="2" placeholder="Ex.: Casa atrás da barraca azul"></textarea>
+
+    <div style="height:10px"></div>
+
+    <div class="actions3">
+      <button id="btnCapture">Capturar GPS</button>
+      <button id="btnSave" disabled>Guardar</button>
+      <button id="btnClearPin" disabled>Limpar pin</button>
+    </div>
+
+    <div style="height:10px"></div>
+    <div class="muted" id="status">Pronto.</div>
+    <div class="warn" id="accuracyWarn" style="display:none"></div>
+  </div>
+
+  <div class="card">
+    <div id="map"></div>
+    <div class="muted" style="margin-top:8px">
+      Dica: podes arrastar o pin para ajustar o ponto antes de guardar.
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="actions">
+      <button id="btnExportJson">Exportar JSON</button>
+      <button id="btnExportCsv">Exportar CSV</button>
+    </div>
+    <div style="height:10px"></div>
+    <button id="btnClearAll">Apagar tudo (device)</button>
+  </div>
+
+  <div class="card">
+    <b>Capturas (offline)</b>
+    <div class="muted">Guardadas neste telemóvel até exportares.</div>
+    <div style="height:10px"></div>
+    <div class="list" id="list"></div>
+  </div>
+</main>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
