@@ -1,100 +1,162 @@
-<!doctype html>
-<html lang="pt">
+<!DOCTYPE html>
+<html lang="pt-PT">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Furo Locator</title>
-
-  <link rel="manifest" href="manifest.json" />
-  <meta name="theme-color" content="#111827" />
-
-  <!-- Leaflet (mapa) -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-
-  <style>
-    body{font-family:system-ui,Segoe UI,Roboto,Arial;margin:0;background:#0b1220;color:#e5e7eb}
-    header{padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.08)}
-    h1{font-size:16px;margin:0}
-    main{padding:12px 16px;display:grid;gap:12px}
-    .card{background:#0f172a;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:12px}
-    label{font-size:12px;opacity:.9}
-    input,textarea,button,select{width:100%;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:#0b1220;color:#e5e7eb}
-    button{cursor:pointer}
-    .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-    #map{height:320px;border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,.10)}
-    .muted{opacity:.8;font-size:12px}
-    .warn{color:#fbbf24;font-size:12px}
-    .ok{color:#34d399;font-size:12px}
-    .actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-    .actions3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
-    .list{display:grid;gap:8px}
-    .item{padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,.10);background:#0b1220}
-    .item b{font-size:13px}
-    .item div{font-size:12px;opacity:.85}
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Furo-Locator</title>
+    <!-- Tailwind CSS para um design limpo e profissional -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background-color: #f8fafc; }
+        /* Impede o zoom ao focar em inputs nos telemóveis */
+        input[type="text"], input[type="number"] { font-size: 16px; } 
+    </style>
 </head>
-<body>
-<header>
-  <h1>Furo Locator (PWA)</h1>
-  <div class="muted">Captura GPS offline • Exporta JSON/CSV</div>
-</header>
+<body class="flex flex-col min-h-screen">
 
-<main>
-  <div class="card">
-    <div class="row">
-      <div>
-        <label>Código do Cliente</label>
-        <input id="clientCode" placeholder="Ex.: AN1" />
-      </div>
-      <div>
-        <label>Operador (opcional)</label>
-        <input id="capturedBy" placeholder="Ex.: Técnico 1" />
-      </div>
-    </div>
+    <!-- Cabeçalho -->
+    <header class="bg-blue-600 text-white p-4 shadow-md text-center">
+        <h1 class="text-xl font-bold"><i class="fa-solid fa-map-location-dot"></i> Furo-Locator</h1>
+        <p class="text-xs text-blue-100 mt-1">Sincronização Direta</p>
+    </header>
 
-    <div style="height:10px"></div>
+    <!-- Formulário Principal -->
+    <main class="flex-1 p-4 flex flex-col gap-4 max-w-md mx-auto w-full mt-4">
+        
+        <!-- Bloco de Configuração (Escondido após preencher) -->
+        <div id="config-block" class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+            <label class="block text-sm font-semibold text-slate-700 mb-1">PIN da Empresa</label>
+            <div class="flex gap-2">
+                <input type="text" id="pin-input" placeholder="Ex: 1001" class="flex-1 bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+                <button onclick="salvarPin()" class="bg-slate-800 text-white px-4 py-2 rounded-lg font-semibold hover:bg-slate-700 transition"><i class="fa-solid fa-save"></i></button>
+            </div>
+            <p class="text-xs text-slate-400 mt-2"><i class="fa-solid fa-info-circle"></i> O PIN fica guardado no telemóvel.</p>
+        </div>
 
-    <label>Observações (opcional)</label>
-    <textarea id="notes" rows="2" placeholder="Ex.: Casa atrás da barraca azul"></textarea>
+        <!-- Bloco de Captura -->
+        <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+            <label class="block text-sm font-semibold text-slate-700 mb-1">Código do Cliente</label>
+            <input type="text" id="cliente-input" placeholder="Ex: CL-045" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-4 py-3 mb-4 text-lg focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase transition">
+            
+            <button id="btn-capturar" onclick="capturarCoordenada()" class="w-full bg-blue-600 text-white font-bold py-4 rounded-lg shadow-lg shadow-blue-500/30 hover:bg-blue-500 active:transform active:scale-95 transition flex items-center justify-center gap-2">
+                <i class="fa-solid fa-satellite-dish"></i> Capturar e Enviar
+            </button>
+        </div>
 
-    <div style="height:10px"></div>
+        <!-- Consola de Status -->
+        <div id="status-box" class="hidden bg-slate-800 text-green-400 p-4 rounded-xl font-mono text-xs overflow-hidden shadow-inner">
+            A aguardar...
+        </div>
 
-    <div class="actions3">
-      <button id="btnCapture">Capturar GPS</button>
-      <button id="btnSave" disabled>Guardar</button>
-      <button id="btnClearPin" disabled>Limpar pin</button>
-    </div>
+    </main>
 
-    <div style="height:10px"></div>
-    <div class="muted" id="status">Pronto.</div>
-    <div class="warn" id="accuracyWarn" style="display:none"></div>
-  </div>
+    <script>
+        // ==========================================
+        // 1. CONFIGURAÇÕES DA DEVCORE (SUPABASE)
+        // ==========================================
+        const SUPABASE_URL = "https://pgyjonhtlycvhgjkihpe.supabase.co";
+        const SUPABASE_ANON_KEY = "sb_publishable_zRLs-Yo_z1_PcfJRUY4R4Q_vg29fHzd"; 
+        
+        // ==========================================
+        // 2. LÓGICA DE INTERFACE
+        // ==========================================
+        document.addEventListener("DOMContentLoaded", () => {
+            const pinGuardado = localStorage.getItem("furo_pin");
+            if (pinGuardado) {
+                document.getElementById("pin-input").value = pinGuardado;
+            }
+        });
 
-  <div class="card">
-    <div id="map"></div>
-    <div class="muted" style="margin-top:8px">
-      Dica: podes arrastar o pin para ajustar o ponto antes de guardar.
-    </div>
-  </div>
+        function salvarPin() {
+            const pin = document.getElementById("pin-input").value.trim();
+            if (pin) {
+                localStorage.setItem("furo_pin", pin);
+                mostrarStatus("✅ PIN guardado no dispositivo.", "text-green-400");
+            }
+        }
 
-  <div class="card">
-    <div class="actions">
-      <button id="btnExportJson">Exportar JSON</button>
-      <button id="btnExportCsv">Exportar CSV</button>
-    </div>
-    <div style="height:10px"></div>
-    <button id="btnClearAll">Apagar tudo (device)</button>
-  </div>
+        function mostrarStatus(mensagem, cor = "text-green-400") {
+            const box = document.getElementById("status-box");
+            box.classList.remove("hidden", "text-green-400", "text-red-400", "text-yellow-400");
+            box.classList.add(cor);
+            box.innerHTML = mensagem;
+        }
 
-  <div class="card">
-    <b>Capturas (offline)</b>
-    <div class="muted">Guardadas neste telemóvel até exportares.</div>
-    <div style="height:10px"></div>
-    <div class="list" id="list"></div>
-  </div>
-</main>
+        // ==========================================
+        // 3. CAPTURA E ENVIO (GEOLOCATION + REST API)
+        // ==========================================
+        function capturarCoordenada() {
+            const pin = document.getElementById("pin-input").value.trim();
+            const cliente = document.getElementById("cliente-input").value.trim().toUpperCase();
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="app.js"></script>
+            if (!pin) return mostrarStatus("❌ Falta o PIN da empresa!", "text-red-400");
+            if (!cliente) return mostrarStatus("❌ Insira o código do cliente!", "text-red-400");
+
+            mostrarStatus("<i class='fa-solid fa-spinner fa-spin'></i> A procurar sinal GPS de Alta Precisão...", "text-yellow-400");
+
+            if (!navigator.geolocation) {
+                return mostrarStatus("❌ O seu navegador não suporta GPS.", "text-red-400");
+            }
+
+            // PLANO A: Tenta alta precisão durante 10 segundos
+            navigator.geolocation.getCurrentPosition(
+                (position) => enviarParaNuvem(position.coords, pin, cliente),
+                (error) => {
+                    // Se falhar por Timeout (código 3), ativamos o Plano B
+                    if (error.code === 3) {
+                        mostrarStatus("<i class='fa-solid fa-satellite-dish'></i> GPS fraco. A usar antenas móveis...", "text-yellow-400");
+                        
+                        // PLANO B: Aceita precisão normal (Rede Móvel) e dá 30 segundos
+                        navigator.geolocation.getCurrentPosition(
+                            (posB) => enviarParaNuvem(posB.coords, pin, cliente),
+                            (errB) => mostrarStatus(`❌ Erro final: ${errB.message}`, "text-red-400"),
+                            { enableHighAccuracy: false, timeout: 30000, maximumAge: 60000 }
+                        );
+                    } else {
+                        mostrarStatus(`❌ Erro de GPS: ${error.message}`, "text-red-400");
+                    }
+                },
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            );
+        }
+
+        async function enviarParaNuvem(coords, pin, cliente) {
+            mostrarStatus("<i class='fa-solid fa-cloud-arrow-up fa-bounce'></i> A enviar para a nuvem...", "text-yellow-400");
+
+            const payload = {
+                pin_empresa: pin,
+                codigo_cliente: cliente,
+                latitude: coords.latitude,
+                longitude: coords.longitude,
+                accuracy_m: coords.accuracy
+            };
+
+            try {
+                // Comunicação direta com o Supabase via REST API
+                const response = await fetch(`${SUPABASE_URL}/rest/v1/coordenadas_campo`, {
+                    method: 'POST',
+                    headers: {
+                        'apikey': SUPABASE_ANON_KEY,
+                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                        'Content-Type': 'application/json',
+                        'Prefer': 'return=minimal' // Otimiza a rede, não pede os dados de volta
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) throw new Error("Falha na rede ou na chave API");
+
+                mostrarStatus(`✅ Cliente ${cliente} registado com sucesso!<br>Precisão: ${coords.accuracy.toFixed(0)} metros.`, "text-green-400");
+                
+                // Limpa o input do cliente para o próximo
+                document.getElementById("cliente-input").value = "";
+
+            } catch (error) {
+                mostrarStatus(`❌ Erro ao enviar: Sem internet ou falha no servidor. Tente novamente.`, "text-red-400");
+                console.error(error);
+            }
+        }
+    </script>
 </body>
 </html>
