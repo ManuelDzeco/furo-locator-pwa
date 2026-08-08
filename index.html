@@ -3,156 +3,199 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Furo-Locator</title>
+    <title>Furo-Locator Mobile</title>
+    
     <!-- Tailwind & FontAwesome -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- 🟢 A FORMA MELHOR: SDK Oficial do Supabase via CDN -->
+    <!-- SDK Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <!-- 🗺️ LEAFLET CSS & JS (Para o Mapa Mobile) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
     <style>
         body { background-color: #f8fafc; }
-        input[type="text"], input[type="number"] { font-size: 16px; } 
+        input[type="text"] { font-size: 16px; } 
+        /* Define a altura do mapa e garante que não se sobrepõe aos menus */
+        #mapa { height: 280px; z-index: 1; border-radius: 0.5rem; border: 1px solid #e2e8f0; }
     </style>
 </head>
 <body class="flex flex-col min-h-screen">
 
-    <!-- Cabeçalho -->
-    <header class="bg-blue-600 text-white p-4 shadow-md text-center">
-        <h1 class="text-xl font-bold"><i class="fa-solid fa-map-location-dot"></i> Furo-Locator</h1>
-        <p class="text-xs text-blue-100 mt-1">Sincronização Direta</p>
+    <header class="bg-blue-600 text-white p-3 shadow-md text-center flex justify-between items-center">
+        <h1 class="text-lg font-bold"><i class="fa-solid fa-map-location-dot"></i> Furo-Locator</h1>
+        <button onclick="toggleConfig()" class="text-blue-200 hover:text-white"><i class="fa-solid fa-cog"></i></button>
     </header>
 
-    <!-- Formulário Principal -->
-    <main class="flex-1 p-4 flex flex-col gap-4 max-w-md mx-auto w-full mt-4">
+    <main class="flex-1 p-4 flex flex-col gap-4 max-w-md mx-auto w-full">
         
-        <!-- Bloco de Configuração -->
-        <div id="config-block" class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-            <label class="block text-sm font-semibold text-slate-700 mb-1">PIN da Empresa</label>
+        <!-- Bloco de Configuração (Oculto por defeito) -->
+        <div id="config-block" class="hidden bg-slate-800 p-4 rounded-xl shadow-sm text-white">
+            <label class="block text-xs font-semibold text-slate-300 mb-1">PIN da Empresa</label>
             <div class="flex gap-2">
-                <input type="text" id="pin-input" placeholder="Ex: 1001" class="flex-1 bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
-                <button onclick="salvarPin()" class="bg-slate-800 text-white px-4 py-2 rounded-lg font-semibold hover:bg-slate-700 transition"><i class="fa-solid fa-save"></i></button>
+                <input type="text" id="pin-input" placeholder="Ex: 1001" class="flex-1 bg-slate-700 border-none text-white rounded-lg px-3 py-2 focus:outline-none">
+                <button onclick="salvarPin()" class="bg-blue-600 px-4 py-2 rounded-lg font-bold"><i class="fa-solid fa-check"></i></button>
             </div>
-            <p class="text-xs text-slate-400 mt-2"><i class="fa-solid fa-info-circle"></i> O PIN fica guardado no telemóvel.</p>
         </div>
 
-        <!-- Bloco de Captura -->
-        <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+        <!-- 🗺️ O MAPA VISUAL AQUI -->
+        <div id="mapa" class="w-full shadow-sm"></div>
+
+        <!-- Bloco de Cliente e Ações -->
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
             <label class="block text-sm font-semibold text-slate-700 mb-1">Código do Cliente</label>
-            <input type="text" id="cliente-input" placeholder="Ex: CL-045" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-4 py-3 mb-4 text-lg focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase transition">
+            <input type="text" id="cliente-input" placeholder="Ex: CL-045" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-4 py-3 mb-3 text-lg focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase">
             
-            <button id="btn-capturar" onclick="capturarCoordenada()" class="w-full bg-blue-600 text-white font-bold py-4 rounded-lg shadow-lg shadow-blue-500/30 hover:bg-blue-500 active:transform active:scale-95 transition flex items-center justify-center gap-2">
-                <i class="fa-solid fa-satellite-dish"></i> Capturar e Enviar
-            </button>
+            <div class="flex gap-2">
+                <!-- Botão 1: Apenas encontrar a localização no mapa -->
+                <button onclick="localizarNoMapa()" class="w-1/3 bg-slate-200 text-slate-700 font-bold py-3 rounded-lg hover:bg-slate-300 active:scale-95 transition">
+                    <i class="fa-solid fa-crosshairs"></i> GPS
+                </button>
+                
+                <!-- Botão 2: Enviar para a Nuvem -->
+                <button onclick="enviarParaNuvem()" class="w-2/3 bg-blue-600 text-white font-bold py-3 rounded-lg shadow-lg hover:bg-blue-500 active:scale-95 transition">
+                    <i class="fa-solid fa-cloud-arrow-up"></i> Guardar Cliente
+                </button>
+            </div>
         </div>
 
         <!-- Consola de Status -->
-        <div id="status-box" class="hidden bg-slate-800 text-green-400 p-4 rounded-xl font-mono text-xs overflow-hidden shadow-inner">
-            A aguardar...
+        <div id="status-box" class="bg-white text-slate-600 border border-slate-200 p-3 rounded-xl font-mono text-xs text-center">
+            Pronto. Ligue o GPS e clique em "GPS".
         </div>
 
     </main>
 
     <script>
         // ==========================================
-        // 1. CONFIGURAÇÕES DA DEVCORE
+        // 1. CONFIGURAÇÕES DA NUVEM
         // ==========================================
         const SUPABASE_URL = "https://pgyjonhtlycvhgjkihpe.supabase.co";
+        // ⚠️ MUDE A CHAVE AQUI ABAIXO:
         const SUPABASE_ANON_KEY = "sb_publishable_zRLs-Yo_z1_PcfJRUY4R4Q_vg29fHzd"; 
         
-        // Inicializar o Cliente Oficial do Supabase
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        let supabase = null;
+        try {
+            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        } catch(e) {
+            console.error("Erro ao iniciar Supabase. Verifique a chave.", e);
+        }
+
+        // Variáveis do Mapa
+        let mapa = null;
+        let pinoAtual = null;
+        let coordenadasCapturadas = null; // Guarda a [latitude, longitude, precisão]
 
         // ==========================================
-        // 2. LÓGICA DE INTERFACE
+        // 2. INICIALIZAÇÃO DA INTERFACE & MAPA
         // ==========================================
         document.addEventListener("DOMContentLoaded", () => {
+            // Carrega PIN
             const pinGuardado = localStorage.getItem("furo_pin");
-            if (pinGuardado) {
-                document.getElementById("pin-input").value = pinGuardado;
-            }
+            if (pinGuardado) document.getElementById("pin-input").value = pinGuardado;
+            else toggleConfig(); // Se não tem PIN, abre a configuração
+
+            // Inicia o Mapa centrado em Moçambique
+            mapa = L.map('mapa').setView([-18.665, 35.529], 5);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap'
+            }).addTo(mapa);
         });
+
+        function toggleConfig() {
+            document.getElementById("config-block").classList.toggle("hidden");
+        }
 
         function salvarPin() {
             const pin = document.getElementById("pin-input").value.trim();
             if (pin) {
                 localStorage.setItem("furo_pin", pin);
-                mostrarStatus("✅ PIN guardado no dispositivo.", "text-green-400");
+                toggleConfig();
+                mostrarStatus("✅ PIN guardado.", "text-green-600");
             }
         }
 
-        function mostrarStatus(mensagem, cor = "text-green-400") {
+        function mostrarStatus(mensagem, cor = "text-slate-600") {
             const box = document.getElementById("status-box");
-            box.classList.remove("hidden", "text-green-400", "text-red-400", "text-yellow-400");
-            box.classList.add(cor);
+            box.className = `bg-white border border-slate-200 p-3 rounded-xl font-mono text-xs text-center ${cor}`;
             box.innerHTML = mensagem;
         }
 
         // ==========================================
-        // 3. CAPTURA E ENVIO
+        // 3. CAPTURA DE GPS NO MAPA
         // ==========================================
-        function capturarCoordenada() {
-            const pin = document.getElementById("pin-input").value.trim();
-            const cliente = document.getElementById("cliente-input").value.trim().toUpperCase();
-
-            if (!pin) return mostrarStatus("❌ Falta o PIN da empresa!", "text-red-400");
-            if (!cliente) return mostrarStatus("❌ Insira o código do cliente!", "text-red-400");
-
-            mostrarStatus("<i class='fa-solid fa-spinner fa-spin'></i> A procurar sinal GPS de Alta Precisão...", "text-yellow-400");
-
+        function localizarNoMapa() {
             if (!navigator.geolocation) {
-                return mostrarStatus("❌ O seu navegador não suporta GPS.", "text-red-400");
+                return mostrarStatus("❌ Navegador não suporta GPS.", "text-red-600");
             }
 
-            // PLANO A: Alta precisão (10 seg)
+            mostrarStatus("<i class='fa-solid fa-spinner fa-spin'></i> A procurar satélites...", "text-blue-600");
+
             navigator.geolocation.getCurrentPosition(
-                (position) => enviarParaNuvem(position.coords, pin, cliente),
-                (error) => {
-                    if (error.code === 3) {
-                        mostrarStatus("<i class='fa-solid fa-satellite-dish'></i> GPS fraco. A usar antenas móveis...", "text-yellow-400");
-                        // PLANO B: Rede Móvel (30 seg)
-                        navigator.geolocation.getCurrentPosition(
-                            (posB) => enviarParaNuvem(posB.coords, pin, cliente),
-                            (errB) => mostrarStatus(`❌ Erro final: ${errB.message}`, "text-red-400"),
-                            { enableHighAccuracy: false, timeout: 30000, maximumAge: 60000 }
-                        );
+                (pos) => {
+                    const lat = pos.coords.latitude;
+                    const lng = pos.coords.longitude;
+                    const acc = pos.coords.accuracy;
+                    coordenadasCapturadas = { lat, lng, acc };
+
+                    // Voar para o local no mapa
+                    mapa.flyTo([lat, lng], 17);
+
+                    // Adicionar/Atualizar Pino no mapa
+                    if (pinoAtual) {
+                        pinoAtual.setLatLng([lat, lng]);
                     } else {
-                        mostrarStatus(`❌ Erro de GPS: ${error.message}`, "text-red-400");
+                        pinoAtual = L.marker([lat, lng]).addTo(mapa);
                     }
+                    
+                    // Adicionar um círculo mostrando a precisão
+                    pinoAtual.bindPopup(`Precisão: ${acc.toFixed(0)}m`).openPopup();
+
+                    mostrarStatus(`✅ Localização encontrada! Precisão: ${acc.toFixed(0)}m.`, "text-green-600");
                 },
-                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                (err) => {
+                    mostrarStatus(`❌ Erro GPS: ${err.message}`, "text-red-600");
+                },
+                { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
             );
         }
 
-        async function enviarParaNuvem(coords, pin, cliente) {
-            mostrarStatus("<i class='fa-solid fa-cloud-arrow-up fa-bounce'></i> A enviar para a base de dados...", "text-yellow-400");
+        // ==========================================
+        // 4. ENVIO PARA O SUPABASE
+        // ==========================================
+        async function enviarParaNuvem() {
+            if (!supabase) return mostrarStatus("❌ Erro interno do Supabase.", "text-red-600");
+            
+            const pin = document.getElementById("pin-input").value.trim();
+            const cliente = document.getElementById("cliente-input").value.trim().toUpperCase();
+
+            if (!pin) return mostrarStatus("❌ Insira o PIN nas definições (Roda dentada).", "text-red-600");
+            if (!cliente) return mostrarStatus("❌ Insira o código do cliente!", "text-red-600");
+            if (!coordenadasCapturadas) return mostrarStatus("❌ Clique em 'GPS' primeiro!", "text-red-600");
+
+            mostrarStatus("<i class='fa-solid fa-cloud-arrow-up fa-bounce'></i> A guardar na nuvem...", "text-blue-600");
 
             const payload = {
                 pin_empresa: pin,
                 codigo_cliente: cliente,
-                latitude: coords.latitude,
-                longitude: coords.longitude,
-                accuracy_m: coords.accuracy
+                latitude: coordenadasCapturadas.lat,
+                longitude: coordenadasCapturadas.lng,
+                accuracy_m: coordenadasCapturadas.acc
             };
 
             try {
-                // A Forma Melhor e Oficial de Inserir Dados no Supabase
-                const { data, error } = await supabase
-                    .from('coordenadas_campo')
-                    .insert([payload]);
+                const { data, error } = await supabase.from('coordenadas_campo').insert([payload]);
 
-                // O SDK devolve um objeto "error" exato se algo falhar na base de dados
-                if (error) {
-                    console.error("Detalhes do erro do Supabase:", error);
-                    throw new Error(error.message); // Passa a mensagem exata do servidor para o ecrã
-                }
+                if (error) throw new Error(error.message);
 
-                mostrarStatus(`✅ Cliente ${cliente} registado!<br>Precisão: ${coords.accuracy.toFixed(0)}m.`, "text-green-400");
+                mostrarStatus(`✅ Cliente ${cliente} guardado com sucesso!`, "text-green-600");
                 document.getElementById("cliente-input").value = "";
-
+                
             } catch (error) {
-                mostrarStatus(`❌ Falha: ${error.message}`, "text-red-400");
+                mostrarStatus(`❌ Falha: ${error.message}`, "text-red-600");
             }
         }
     </script>
