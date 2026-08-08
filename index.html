@@ -4,12 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Furo-Locator</title>
-    <!-- Tailwind CSS para um design limpo e profissional -->
+    <!-- Tailwind & FontAwesome -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- 🟢 A FORMA MELHOR: SDK Oficial do Supabase via CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
     <style>
         body { background-color: #f8fafc; }
-        /* Impede o zoom ao focar em inputs nos telemóveis */
         input[type="text"], input[type="number"] { font-size: 16px; } 
     </style>
 </head>
@@ -24,7 +27,7 @@
     <!-- Formulário Principal -->
     <main class="flex-1 p-4 flex flex-col gap-4 max-w-md mx-auto w-full mt-4">
         
-        <!-- Bloco de Configuração (Escondido após preencher) -->
+        <!-- Bloco de Configuração -->
         <div id="config-block" class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
             <label class="block text-sm font-semibold text-slate-700 mb-1">PIN da Empresa</label>
             <div class="flex gap-2">
@@ -53,11 +56,14 @@
 
     <script>
         // ==========================================
-        // 1. CONFIGURAÇÕES DA DEVCORE (SUPABASE)
+        // 1. CONFIGURAÇÕES DA DEVCORE
         // ==========================================
         const SUPABASE_URL = "https://pgyjonhtlycvhgjkihpe.supabase.co";
         const SUPABASE_ANON_KEY = "sb_publishable_zRLs-Yo_z1_PcfJRUY4R4Q_vg29fHzd"; 
         
+        // Inicializar o Cliente Oficial do Supabase
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
         // ==========================================
         // 2. LÓGICA DE INTERFACE
         // ==========================================
@@ -84,7 +90,7 @@
         }
 
         // ==========================================
-        // 3. CAPTURA E ENVIO (GEOLOCATION + REST API)
+        // 3. CAPTURA E ENVIO
         // ==========================================
         function capturarCoordenada() {
             const pin = document.getElementById("pin-input").value.trim();
@@ -99,15 +105,13 @@
                 return mostrarStatus("❌ O seu navegador não suporta GPS.", "text-red-400");
             }
 
-            // PLANO A: Tenta alta precisão durante 10 segundos
+            // PLANO A: Alta precisão (10 seg)
             navigator.geolocation.getCurrentPosition(
                 (position) => enviarParaNuvem(position.coords, pin, cliente),
                 (error) => {
-                    // Se falhar por Timeout (código 3), ativamos o Plano B
                     if (error.code === 3) {
                         mostrarStatus("<i class='fa-solid fa-satellite-dish'></i> GPS fraco. A usar antenas móveis...", "text-yellow-400");
-                        
-                        // PLANO B: Aceita precisão normal (Rede Móvel) e dá 30 segundos
+                        // PLANO B: Rede Móvel (30 seg)
                         navigator.geolocation.getCurrentPosition(
                             (posB) => enviarParaNuvem(posB.coords, pin, cliente),
                             (errB) => mostrarStatus(`❌ Erro final: ${errB.message}`, "text-red-400"),
@@ -122,7 +126,7 @@
         }
 
         async function enviarParaNuvem(coords, pin, cliente) {
-            mostrarStatus("<i class='fa-solid fa-cloud-arrow-up fa-bounce'></i> A enviar para a nuvem...", "text-yellow-400");
+            mostrarStatus("<i class='fa-solid fa-cloud-arrow-up fa-bounce'></i> A enviar para a base de dados...", "text-yellow-400");
 
             const payload = {
                 pin_empresa: pin,
@@ -133,28 +137,22 @@
             };
 
             try {
-                // Comunicação direta com o Supabase via REST API
-                const response = await fetch(`${SUPABASE_URL}/rest/v1/coordenadas_campo`, {
-                    method: 'POST',
-                    headers: {
-                        'apikey': SUPABASE_ANON_KEY,
-                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-                        'Content-Type': 'application/json',
-                        'Prefer': 'return=minimal' // Otimiza a rede, não pede os dados de volta
-                    },
-                    body: JSON.stringify(payload)
-                });
+                // A Forma Melhor e Oficial de Inserir Dados no Supabase
+                const { data, error } = await supabase
+                    .from('coordenadas_campo')
+                    .insert([payload]);
 
-                if (!response.ok) throw new Error("Falha na rede ou na chave API");
+                // O SDK devolve um objeto "error" exato se algo falhar na base de dados
+                if (error) {
+                    console.error("Detalhes do erro do Supabase:", error);
+                    throw new Error(error.message); // Passa a mensagem exata do servidor para o ecrã
+                }
 
-                mostrarStatus(`✅ Cliente ${cliente} registado com sucesso!<br>Precisão: ${coords.accuracy.toFixed(0)} metros.`, "text-green-400");
-                
-                // Limpa o input do cliente para o próximo
+                mostrarStatus(`✅ Cliente ${cliente} registado!<br>Precisão: ${coords.accuracy.toFixed(0)}m.`, "text-green-400");
                 document.getElementById("cliente-input").value = "";
 
             } catch (error) {
-                mostrarStatus(`❌ Erro ao enviar: Sem internet ou falha no servidor. Tente novamente.`, "text-red-400");
-                console.error(error);
+                mostrarStatus(`❌ Falha: ${error.message}`, "text-red-400");
             }
         }
     </script>
